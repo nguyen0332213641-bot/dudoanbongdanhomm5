@@ -7,7 +7,7 @@ from sklearn.preprocessing import LabelEncoder
 import plotly.express as px
 
 # =========================================================
-# 1. CẤU HÌNH TRANG & CSS GIAO DIỆN SIÊU CẤP
+# 1. CẤU HÌNH TRANG & CSS GIAO DIỆN SIÊU CẤP (KHÔNG LOGO)
 # =========================================================
 st.set_page_config(page_title="AI Bóng Đá - Nhóm 5 UTH", page_icon="⚽", layout="wide", initial_sidebar_state="expanded")
 
@@ -110,6 +110,7 @@ def train_models(df, k_neighbors):
     
     return knn, lr, le, all_teams
 
+# Hàm tính toán phong độ (Tỷ lệ thắng lịch sử)
 def calculate_win_rate(team, df):
     home_matches = df[df['HomeTeam'] == team]
     away_matches = df[df['AwayTeam'] == team]
@@ -121,15 +122,9 @@ def calculate_win_rate(team, df):
 df = load_data()
 
 # =========================================================
-# 3. SIDEBAR ĐIỀU KHIỂN
+# 3. SIDEBAR ĐIỀU KHIỂN 
 # =========================================================
 with st.sidebar:
-    # HIỂN THỊ LOGO UTH TỪ FILE GITHUB
-    try:
-        st.image("logo.png", use_container_width=True)
-    except Exception:
-        st.warning("Đang chờ tải logo.png...")
-        
     st.markdown("## ⚙️ ĐIỀU KHIỂN MÔ HÌNH")
     k_val = st.slider("Chỉnh số láng giềng KNN (K):", 1, 9, 3, 2, help="Nên chọn số lẻ (1, 3, 5, 7)")
     knn_model, lr_model, encoder, team_list = train_models(df, k_val)
@@ -139,6 +134,7 @@ with st.sidebar:
     st.markdown("**Môn học:** Trí tuệ nhân tạo & Ứng dụng")
     st.markdown("**Đơn vị:** Trường ĐH GTVT TP.HCM (UTH)")
     st.markdown("**Thực hiện:** Nhóm 05")
+    st.caption("✨ Engine Version: 4.0 - E-Sports Edition")
 
 # =========================================================
 # 4. GIAO DIỆN CHÍNH
@@ -152,6 +148,7 @@ st.markdown("""
 
 tab1, tab2, tab3 = st.tabs(["🚀 ĐỘNG CƠ DỰ ĐOÁN (AI ENGINE)", "⚔️ LỊCH SỬ ĐỐI ĐẦU (H2H)", "📊 BÁO CÁO DỮ LIỆU (EDA)"])
 
+# --- TAB 1: DỰ ĐOÁN & GIẢI THÍCH AI ---
 with tab1:
     st.write("<br>", unsafe_allow_html=True)
     col1, col_vs, col2 = st.columns([4, 1, 4])
@@ -159,6 +156,8 @@ with tab1:
     with col1:
         st.markdown('<div class="team-card home-card"><div class="team-label">🏰 ĐỘI CHỦ NHÀ (HOME)</div></div>', unsafe_allow_html=True)
         home_team = st.selectbox(" ", sorted(team_list), key="home", label_visibility="collapsed")
+        
+        # Thống kê phong độ nhanh
         t_home, wr_home = calculate_win_rate(home_team, df)
         st.caption(f"📊 Đã đá: {t_home} trận | Tỷ lệ thắng: **{wr_home:.1f}%**")
         
@@ -168,6 +167,8 @@ with tab1:
     with col2:
         st.markdown('<div class="team-card away-card"><div class="team-label">🚀 ĐỘI KHÁCH (AWAY)</div></div>', unsafe_allow_html=True)
         away_team = st.selectbox(" ", sorted(team_list), key="away", label_visibility="collapsed")
+        
+        # Thống kê phong độ nhanh
         t_away, wr_away = calculate_win_rate(away_team, df)
         st.caption(f"📊 Đã đá: {t_away} trận | Tỷ lệ thắng: **{wr_away:.1f}%**")
 
@@ -201,6 +202,7 @@ with tab1:
                     st.info(f"⚖️ Dự đoán KNN (Phân loại): Trận đấu căng thẳng, kết thúc với tỷ số **HÒA**.")
                 else:
                     st.error(f"⚔️ Dự đoán KNN (Phân loại): **{away_team}** gây bất ngờ, giành chiến thắng trên sân khách.")
+                
                 st.warning(f"⚽ Dự đoán Hồi quy (Regression): Trận đấu sẽ có tổng cộng khoảng **{max(0, pred_goals):.1f} bàn thắng**.")
                 
             with r_col2:
@@ -219,6 +221,7 @@ with tab1:
             st.caption(f"Dựa trên thuật toán KNN (K={k_val}), hệ thống đã tìm ra **{k_val} trận đấu** có bối cảnh (Home/Away) tương đồng nhất trong lịch sử để làm căn cứ ra quyết định:")
             st.dataframe(nearest_matches[['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG', 'Result']], use_container_width=True)
 
+# --- TAB 2: LỊCH SỬ ĐỐI ĐẦU H2H ---
 with tab2:
     st.markdown(f"### ⚔️ THỐNG KÊ CHẠM TRÁN: **{home_team}** vs **{away_team}**")
     h2h_data = df[((df['HomeTeam'] == home_team) & (df['AwayTeam'] == away_team)) | 
@@ -238,6 +241,7 @@ with tab2:
         col_s2.metric("Hòa", h2h_draws)
         col_s3.metric("Khách thắng", h2h_away_wins)
 
+# --- TAB 3: BIỂU ĐỒ EDA ---
 with tab3:
     st.markdown("### 📈 TRỰC QUAN HÓA BỘ DỮ LIỆU")
     c1, c2 = st.columns(2)
