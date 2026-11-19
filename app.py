@@ -157,9 +157,10 @@ div[data-testid="stDataFrame"] { width: 100%; }
     justify-content: space-between; gap: 28px; }
 .hero-logo { flex: 0 0 auto; background: #fff; border-radius: 16px; padding: 10px 16px;
     box-shadow: 0 8px 22px rgba(0,0,0,.28); }
-.hero-logo img { display: block; height: 96px; width: auto; }
+.hero-logo img { display: block; height: 64px; width: auto; max-width: 100%; }
 @media (max-width: 760px) {
     .hero-row { flex-direction: column-reverse; align-items: flex-start; }
+    .hero-logo img { height: 48px; }
     .hero-title { font-size: 30px; }
 }
 [data-testid="stSidebar"] img { border-radius: 12px; }
@@ -481,7 +482,7 @@ st.markdown(
 
 with st.sidebar:
     if LOGO_FILE.exists():
-        st.image(str(LOGO_FILE), width=200)
+        st.image(str(LOGO_FILE), width=230)
     st.markdown("## ⚽ AI Bóng Đá")
     st.caption("Nhóm 5 · Trí tuệ nhân tạo & Ứng dụng")
     st.divider()
