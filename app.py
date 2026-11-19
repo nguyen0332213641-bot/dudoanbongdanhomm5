@@ -1,5 +1,7 @@
+import base64
 import io
 import math
+from pathlib import Path
 from datetime import datetime
 from html import escape
 
@@ -24,6 +26,9 @@ from sklearn.preprocessing import StandardScaler
 # ==========================================================
 # 1. CẤU HÌNH CHUNG
 # ==========================================================
+BASE_DIR = Path(__file__).resolve().parent
+LOGO_FILE = BASE_DIR / "uth_logo.png"
+
 st.set_page_config(
     page_title="Premier League AI Predictor | Nhóm 5",
     page_icon="⚽",
@@ -31,7 +36,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-DEFAULT_FILE = "nhom5_bongda_train.xlsx"
+DEFAULT_FILES = ["nhom5_bongda.xlsx", "nhom5_bongda_train.xlsx"]  # file đầu tiên tồn tại sẽ được dùng
 REQUIRED_COLS = ["HomeTeam", "AwayTeam", "FTHG", "FTAG"]
 MODEL_NAMES = [
     "K-Nearest Neighbors",
@@ -146,6 +151,18 @@ div[data-testid="stMetric"] {
 .stTabs [data-baseweb="tab"] { border-radius: 10px 10px 0 0; padding: 10px 18px; font-weight: 700; }
 div[data-testid="stDataFrame"] { width: 100%; }
 .footer { text-align: center; opacity: .6; font-size: 13px; margin-top: 30px; }
+
+/* ---------- LOGO UTH ---------- */
+.hero-row { position: relative; z-index: 1; display: flex; align-items: center;
+    justify-content: space-between; gap: 28px; }
+.hero-logo { flex: 0 0 auto; background: #fff; border-radius: 16px; padding: 10px 16px;
+    box-shadow: 0 8px 22px rgba(0,0,0,.28); }
+.hero-logo img { display: block; height: 96px; width: auto; }
+@media (max-width: 760px) {
+    .hero-row { flex-direction: column-reverse; align-items: flex-start; }
+    .hero-title { font-size: 30px; }
+}
+[data-testid="stSidebar"] img { border-radius: 12px; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -168,10 +185,22 @@ def style_fig(fig, height=320):
     return fig
 
 
+@st.cache_data
+def logo_b64():
+    """Logo UTH dạng base64 để nhúng vào HTML (rỗng nếu thiếu file)."""
+    try:
+        return base64.b64encode(LOGO_FILE.read_bytes()).decode()
+    except OSError:
+        return ""
+
+
 @st.cache_data(show_spinner="📥 Đang tải dữ liệu...")
 def load_data(content, filename):
     if content is None:
-        df = pd.read_excel(DEFAULT_FILE)
+        path = next((BASE_DIR / f for f in DEFAULT_FILES if (BASE_DIR / f).exists()), None)
+        if path is None:
+            raise FileNotFoundError(DEFAULT_FILES[0])
+        df = pd.read_excel(path)
     elif filename.lower().endswith(".csv"):
         df = pd.read_csv(io.BytesIO(content))
     else:
@@ -192,7 +221,11 @@ def load_data(content, filename):
     df["FTAG"] = df["FTAG"].astype(int)
 
     if "Date" in df.columns:
-        df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True)
+        raw_date = df["Date"]
+        parsed = pd.to_datetime(raw_date, format="%d/%m/%y", errors="coerce")
+        if parsed.isna().mean() > 0.5:
+            parsed = pd.to_datetime(raw_date, errors="coerce", dayfirst=True)
+        df["Date"] = parsed
         df = df.sort_values("Date", kind="stable")
 
     df["Result"] = np.select([df["FTHG"] > df["FTAG"], df["FTHG"] == df["FTAG"]], ["H", "D"], "A")
@@ -424,19 +457,31 @@ def clear_history():
 # ==========================================================
 # 4. HERO + SIDEBAR (CÀI ĐẶT)
 # ==========================================================
+_logo = logo_b64()
+_logo_html = (
+    f'<div class="hero-logo"><img src="data:image/png;base64,{_logo}" '
+    'alt="Logo Trường Đại học Giao thông vận tải TP.HCM (UTH)"></div>'
+    if _logo
+    else ""
+)
 st.markdown(
-    """
-<div class="hero">
+    f"""
+<div class="hero"><div class="hero-row">
+<div class="hero-text">
     <div class="hero-badge">🎓 ĐỒ ÁN · TRÍ TUỆ NHÂN TẠO & ỨNG DỤNG · NHÓM 5</div>
     <div class="hero-title">Premier League <span>AI Predictor</span></div>
     <div class="hero-sub">Dự đoán kết quả Ngoại hạng Anh bằng Học máy: so sánh nhiều thuật toán,
     phân tích sức mạnh đội bóng, tỷ số kỳ vọng, đối đầu và phong độ.</div>
 </div>
+{_logo_html}
+</div></div>
 """,
     unsafe_allow_html=True,
 )
 
 with st.sidebar:
+    if LOGO_FILE.exists():
+        st.image(str(LOGO_FILE), width=200)
     st.markdown("## ⚽ AI Bóng Đá")
     st.caption("Nhóm 5 · Trí tuệ nhân tạo & Ứng dụng")
     st.divider()
@@ -450,12 +495,11 @@ with st.sidebar:
     st.markdown("#### 🧪 Huấn luyện")
     test_size = st.slider("Tỷ lệ tập kiểm tra", 10, 40, 20, step=5, format="%d%%") / 100
     k_neighbors = st.slider("Số láng giềng K (cho KNN)", 1, 25, 7, step=2)
-    celebrate = st.toggle("🎉 Hiệu ứng ăn mừng", value=True)
 
 try:
     df = load_data(uploaded.getvalue() if uploaded else None, uploaded.name if uploaded else "")
 except FileNotFoundError:
-    st.error(f"Không tìm thấy file `{DEFAULT_FILE}`. Hãy đặt file cùng thư mục với app.py hoặc tải file lên ở thanh bên.")
+    st.error(f"Không tìm thấy file `{DEFAULT_FILES[0]}`. Hãy đặt file cùng thư mục với app.py hoặc tải file lên ở thanh bên.")
     st.stop()
 except Exception as e:
     st.error(f"Không đọc được dữ liệu: {e}")
@@ -471,6 +515,13 @@ stats = bundle["stats"]
 lg_h, lg_a = df["FTHG"].mean(), df["FTAG"].mean()
 table_all = league_table(df)
 ranks = table_all.set_index("Đội")["Hạng"].to_dict()
+
+if len(df) < 200:
+    st.warning(
+        f"⚠️ Bộ dữ liệu hiện chỉ có **{len(df)} trận** (mỗi đội khoảng {2 * len(df) / len(teams):.0f} trận), "
+        f"và tập kiểm tra chỉ có **{bundle['n_test']} trận**, nên độ chính xác dao động rất mạnh và dự đoán "
+        "chỉ mang tính minh họa. Hãy tải thêm dữ liệu nhiều mùa giải ở thanh bên để mô hình đáng tin cậy hơn."
+    )
 
 with st.sidebar:
     st.divider()
@@ -536,11 +587,6 @@ with tab1:
                     "P(Khách thắng) %": round(probs["A"] * 100, 1),
                 },
             )
-            if celebrate:
-                if pred == "H":
-                    st.balloons()
-                elif pred == "A":
-                    st.snow()
 
     last = st.session_state.get("last")
     if home_team == away_team:
